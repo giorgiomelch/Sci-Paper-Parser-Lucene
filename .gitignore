@@ -1,0 +1,4 @@
+corpus/*
+lucene-index/*
+lucene-demo/target/
+.DS_Store

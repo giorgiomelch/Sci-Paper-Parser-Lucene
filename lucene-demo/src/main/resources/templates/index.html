@@ -1,0 +1,178 @@
+<h1>Lucene Search</h1>
+
+<h2>Ricerca</h2>
+<form th:action="@{/search}" method="get">
+
+    <!-- Keyword -->
+    <label for="keyword">Keyword:</label>
+    <input type="text" id="keyword" name="keyword" placeholder="Keyword" th:value="${keyword}">
+    <br/><br/>
+
+    <!-- Tipi -->
+    <fieldset>
+        <legend>Tipo</legend>
+        <label><input type="checkbox" name="types" value="article" th:checked="${types != null and #lists.contains(types,'article')}"> Articles</label>
+        <label><input type="checkbox" name="types" value="image" th:checked="${types != null and #lists.contains(types,'image')}"> Images</label>
+        <label><input type="checkbox" name="types" value="table" th:checked="${types != null and #lists.contains(types,'table')}"> Tables</label>
+    </fieldset>
+    <br/>
+
+    <!-- Campi articoli -->
+    <fieldset>
+        <legend>Campi articoli</legend>
+        <label><input type="checkbox" name="fieldsArticle" value="title" th:checked="${fieldsArticle != null and #lists.contains(fieldsArticle,'title')}"> Title</label>
+        <label><input type="checkbox" name="fieldsArticle" value="abstract_" th:checked="${fieldsArticle != null and #lists.contains(fieldsArticle,'abstract_')}"> Abstract</label>
+        <label><input type="checkbox" name="fieldsArticle" value="authors" th:checked="${fieldsArticle != null and #lists.contains(fieldsArticle,'authors')}"> Authors</label>
+        <label><input type="checkbox" name="fieldsArticle" value="fulltext" th:checked="${fieldsArticle != null and #lists.contains(fieldsArticle,'fulltext')}"> Fulltext</label>
+    </fieldset>
+    <br/>
+
+    <!-- Campi immagini -->
+    <fieldset>
+        <legend>Campi immagini</legend>
+        <label><input type="checkbox" name="fieldsImage" value="caption" th:checked="${fieldsImage != null and #lists.contains(fieldsImage,'caption')}"> Caption</label>
+        <label><input type="checkbox" name="fieldsImage" value="contextParagraphs" th:checked="${fieldsImage != null and #lists.contains(fieldsImage,'contextParagraphs')}"> Context</label>
+    </fieldset>
+    <br/>
+
+    <!-- Campi tabelle -->
+    <fieldset>
+        <legend>Campi tabelle</legend>
+        <label><input type="checkbox" name="fieldsTable" value="body" th:checked="${fieldsTable != null and #lists.contains(fieldsTable,'body')}"> Body</label>
+        <label><input type="checkbox" name="fieldsTable" value="caption" th:checked="${fieldsTable != null and #lists.contains(fieldsTable,'caption')}"> Caption</label>
+    </fieldset>
+    <br/>
+
+    <!-- Max results -->
+    <label for="maxResults">Max results:</label>
+    <input type="number" id="maxResults" name="maxResults" placeholder="Max results" th:value="${maxResults}">
+    <br/><br/>
+
+    <button type="submit">Search</button>
+</form>
+
+<hr/>
+
+<h2>Ricerca per ID (paper_id)</h2>
+<form th:action="@{/search/id}" method="get">
+    <input type="text" name="id" placeholder="paper_id" th:value="${id}">
+    <input type="number" name="maxResults" placeholder="Max results" th:value="${maxResults}">
+    <button type="submit">Search</button>
+</form>
+
+<hr/>
+
+<h2>Ricerca per date (solo articoli)</h2>
+<form th:action="@{/search/date}" method="get">
+    <label>Da:</label>
+    <select id="fromYear" name="fromYear" onchange="updateDays('from')">
+        <option value="">Anno</option>
+        <option th:each="y : ${#numbers.sequence(2000, 2025)}"
+                th:value="${y}" th:text="${y}" th:selected="${fromYear == y}"></option>
+    </select>
+    <select id="fromMonth" name="fromMonth" onchange="updateDays('from')">
+        <option value="">Mese</option>
+        <option th:each="m : ${#numbers.sequence(1,12)}"
+                th:value="${m}" th:text="${m}" th:selected="${fromMonth == m}"></option>
+    </select>
+    <select id="fromDay" name="fromDay">
+        <option value="">Giorno</option>
+        <option th:each="d : ${#numbers.sequence(1,31)}"
+                th:value="${d}" th:text="${d}" th:selected="${fromDay == d}"></option>
+    </select>
+    <br/>
+
+    <label>A:</label>
+    <select id="toYear" name="toYear" onchange="updateDays('to')">
+        <option value="">Anno</option>
+        <option th:each="y : ${#numbers.sequence(2000, 2025)}"
+                th:value="${y}" th:text="${y}" th:selected="${toYear == y}"></option>
+    </select>
+    <select id="toMonth" name="toMonth" onchange="updateDays('to')">
+        <option value="">Mese</option>
+        <option th:each="m : ${#numbers.sequence(1,12)}"
+                th:value="${m}" th:text="${m}" th:selected="${toMonth == m}"></option>
+    </select>
+    <select id="toDay" name="toDay">
+        <option value="">Giorno</option>
+        <option th:each="d : ${#numbers.sequence(1,31)}"
+                th:value="${d}" th:text="${d}" th:selected="${toDay == d}"></option>
+    </select>
+    <br/>
+
+    <input type="number" name="maxResults" placeholder="Max results" th:value="${maxResults}">
+    <button type="submit">Search</button>
+</form>
+
+<script>
+function updateDays(prefix) {
+    const year = parseInt(document.getElementById(prefix+'Year').value);
+    const month = parseInt(document.getElementById(prefix+'Month').value);
+    const daySelect = document.getElementById(prefix+'Day');
+    if (!year || !month) return;
+
+    const maxDays = new Date(year, month, 0).getDate();
+    const selectedDay = parseInt(daySelect.value);
+    daySelect.innerHTML = '<option value="">Giorno</option>';
+    for(let d=1; d<=maxDays; d++){
+        const opt = document.createElement('option');
+        opt.value = d; opt.text = d;
+        if(d===selectedDay) opt.selected=true;
+        daySelect.appendChild(opt);
+    }
+}
+</script>
+
+<hr/>
+
+<div th:if="${#lists.isEmpty(results)}">
+    <p style="text-align:center; color:#777; font-style:italic;">Nessun risultato trovato.</p>
+</div>
+
+<div th:if="${!#lists.isEmpty(results)}">
+    <h2 style="margin-bottom:20px;" th:text="'Risultati (' + ${results.size()} + ')'"></h2>
+
+    <div th:each="item : ${results}" class="result-item" 
+         style="border:1px solid #ddd; border-radius:10px; padding:15px; margin-bottom:15px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+
+        <!-- Header risultato -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-weight:bold; text-transform:uppercase; color:#2c3e50;" th:text="${item.type}">TYPE</span>
+            <span style="color:#555;">Score: <span th:text="${#numbers.formatDecimal(item.score,1,2)}"></span></span>
+            <span style="color:#999; font-size:0.9em;">ID: <span th:text="${item.id}"></span></span>
+        </div>
+
+        <!-- Contenuto in base al tipo -->
+        <div th:switch="${item.type}">
+            <!-- ARTICLE -->
+            <div th:case="${T(com.example.lucene.search.ISearchResult.ResultType).ARTICLE}">
+                <p><b>Title:</b> <span th:text="${item.title}"></span></p>
+                <p><b>Authors:</b> <span th:text="${item.authors}"></span></p>
+                <p><b>Date:</b> <span th:text="${item.date}"></span></p>
+                <p><b>Abstract:</b> <span th:text="${item.abstract}"></span></p>
+            </div>
+
+            <!-- IMAGE -->
+            <div th:case="${T(com.example.lucene.search.ISearchResult.ResultType).IMAGE}">
+                <p><b>Caption:</b> <span th:text="${item.caption}"></span></p>
+                <p><b>URL:</b> <a th:href="${item.url}" th:text="${item.url}" target="_blank" style="color:#3498db;"></a></p>
+                <p th:if="${item.contextParagraphs != null}"><b>Context:</b> <span th:text="${item.contextParagraphs}"></span></p>
+            </div>
+
+            <!-- TABLE -->
+            <div th:case="${T(com.example.lucene.search.ISearchResult.ResultType).TABLE}">
+                <p><b>Caption:</b> <span th:text="${item.caption}"></span></p>
+                <div style="background:#f9f9f9; padding:10px; border-radius:5px; overflow-x:auto;">
+                    <pre th:text="${item.body}" style="margin:0; font-family:monospace; font-size:0.9em;"></pre>
+                </div>
+            </div>
+
+            <div th:case="*">
+                <div th:text="${item.description}"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
