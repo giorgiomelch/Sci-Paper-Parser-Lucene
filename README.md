@@ -1,35 +1,56 @@
-Ingegneria dei dati 2025/2026
-Homework 5
+# Document Retrieval and Indexing System
 
-L’obiettivo del progetto è sviluppare un sistema avanzato di search su articoli scientifici, in cui le tabelle siano trattate come oggetti di prima classe e completamente indicizzabili.
+Questo repository contiene l'implementazione di un sistema volto al recupero, indicizzazione e ricerca di articoli scientifici. Il sistema pone particolare attenzione alle figure, estraendo tabelle e immagini per renderle autonomamente interrogabili e massimizzare il valore informativo. 
 
-1.Creazione del corpus di documenti. Scrivere uno script per recuperare da https://arxiv.org tutti gli articoli disponibili in formato HTML il cui titolo o abstract contiene la stringa: "text-to-sql" oppure "Natural language to sql"
+## Domini di Ricerca e Acquisizione Dati
 
-2.Indicizzazione dei documenti. Scrivere il codice per indicizzare gli articoli utilizzando Elasticsearch (o Lucene), includendo i seguenti campi: titolo, autori, data, abstract, testo completo.
+Il sistema acquisisce articoli solo se presente la loro versione in formato HTML, concentrandosi su due domini:
+* **Corpus arXiv**: Selezione di articoli il cui titolo o abstract contiene le stringhe "text-to-sql" o "Natural Language to SQL".
+* **Corpus PubMed**: Selezione di articoli open access recuperati tramite la query target "cancer risk AND coffee consumption".
 
-3.Funzionalità di ricerca base. Il sistema deve permettere interrogazioni su uno o più campi, ricerca per parole chiave, combinazioni di query (es. ricerca booleana, full-text). Le funzionalità di ricerca devono
-essere disponibili tramite una semplice shell su riga di comando e tramite una semplice interfaccia web.
+## Stack Tecnologico
 
-4.Estrazione delle tabelle. Scrivere il codice per estrarre dagli articoli del corpus tutte le tabelle con associati dati di contesto. In particolare, per ogni tabella, estrare il corpo, la caption, i paragrafi che la
-citano, i paragrafi che contengono termini presenti nella tabella o nella caption (evitando di considerare termini non informativi).
+L'architettura sfrutta diversi linguaggi e librerie specializzate:
+* **Python**: Impiegato per lo sviluppo del modulo di Data Ingestion[. Tramite la libreria requests, sono state gestite le chiamate HTTP per lo scaricamento massivo degli articoli.
+* **Java**: Costituisce il nucleo portante del sistema per l'implementazione della logica di elaborazione, del motore di indicizzazione e dell'interfaccia di ricerca.
+* **Jsoup**: Strumento di riferimento per il parsing dei documenti HTML.
+* **Apache Lucene**: Rappresenta il nucleo delle fasi di Indexing e Retrieval per la creazione degli indici invertiti.
 
-5.Estrazione delle figure. Scrivere il codice per estrarre dagli articoli del corpus tutte le figure con associati dati di contesto. In particolare, per ogni figura, estrare l'url, la caption, i paragrafi che la citano, i paragrafi che citano termini presenti nella caption (evitando di considerare termini non informativi).
+## Fasi della Pipeline
 
-6.Indicizzazione delle tabelle. Scrivere il codice per indicizzare le tabelle utilizzando Elasticsearch (o Lucene). Ogni tabella viene indicizzata come un documento, con i seguenti campi: paper_id (ID dell'articolo), table_id (ID della tabella all’interno dell’articolo), caption (testo della caption della tabella), body (contenuto della tabella come testo), mentions (lista dei paragrafi del paper che citano la tabella), context_paragraphs (lista dei paragrafi del paper che contengono termini presenti nella tabella o nella caption).
+Il sistema si articola in tre fasi principali:
+1. **Acquisizione automatica**: Recupero di documenti in formato HTML dalle piattaforme arXiv e PubMed. Per arXiv viene sfruttato il portale ar5iv per trasformare i sorgenti LaTeX in HTML strutturato.
+2. **Analisi e parsing del documento**: Estrazione automatica di metadati e contenuti strutturati. Il sistema rimuove il rumore per evitare un alto tasso di falsi positivi durante la ricerca.
+3. **Indicizzazione e Ricerca**: Utilizzo del motore di ricerca Lucene per l'indicizzazione dei dati estratti, permettendo l'esecuzione di query booleane e full-text.
 
-7.Indicizzazione delle figure. Scrivere il codice per indicizzare le figure utilizzando Elasticsearch (o Lucene). Ogni figura viene indicizzata come un documento, con i seguenti campi: url (url della figura),
-paper_id (ID dell'articolo), table_id (ID della figura all’interno dell’articolo), caption (testo della caption della figura), mentions (lista dei paragrafi del paper che citano la figura).
+## Modello Matematico per il Context Matching
 
-8.Funzionalità di ricerca avanzate. Il sistema deve permettere interrogazioni per tabelle, figure, documenti su uno o più campi, ricerca per parole chiave, combinazioni di query (es. ricerca booleana, full-text). Le funzionalità di ricerca devono essere disponibili tramite una semplice shell su riga di comando e tramite una semplice interfaccia web.
+Per determinare la pertinenza di un paragrafo rispetto a una risorsa visiva, il sistema adotta un modello di matching pesato basato sulla metrica Inverse Document Frequency. 
+Il calcolo del peso è inversamente proporzionale alla frequenza del termine all'interno dell'articolo:
 
-• Ripetere le stesse operazioni, per almeno 500 articoli open
-access presenti su PubMed che contengono le keyword: "cancer risk AND coffee comsumption"
-• Si possono ottenee da questo url:
-https://pmc.ncbi.nlm.nih.gov/search/?filter=collections.open_access
-Homework 5
-• Preparare una relazione di circa 10 pagine che descrive la soluzione
-tecnica implementata. Descrivere l'architettura della soluzione, e gli
-sperimenti per valutare le prestazioni (in termini qualitativi e
-quantitativi) del sistema
-• Preparare una presentazione di 15' (che descrive architettura e
-valutazione sperimentale della soluzione)
+$w_{t}=\log(\frac{N_{paragraphs}}{DF(t)+1})$ 
+
+Un paragrafo viene classificato come contesto valido se il suo punteggio supera una soglia relativa, fissata sperimentalmente al 20% del valore totale della figura:
+
+$Score(P)\ge0.20\times Score_{tot}$ 
+
+## Strategia di Storage e Indici Lucene
+
+Il sistema organizza i dati in tre indici specializzati, distinguendo le entità per tipologia (Articoli, Immagini, Tabelle). 
+L'architettura dei campi è progettata per bilanciare le capacità di ricerca con l'efficienza dello storage:
+
+| Entità | Campi Persistenti (Store.SI) | Campi Solo Indicizzati (Store.NO) |
+| :--- | :--- | :--- |
+| **Articolo** | id, date, title, abstract, fulltext | Nessuno |
+| **Immagine** | image_id, paper_id, url, caption  | citing_paragraphs, context_paragraphs |
+| **Tabella** | table_id, paper_id, body, caption | citing_paragraphs, context_paragraphs |
+
+I paragrafi citanti e di contesto sono indicizzati esclusivamente per finalità di retrieval full-text. Non vengono memorizzati negli indici delle immagini e delle tabelle per evitare ridondanza, poiché già persistiti nell'indice degli articoli.
+
+## Ricerca e Interrogazione
+
+Il motore di ricerca supporta diverse modalità principali:
+* **Ricerca su Singolo Campo**: Il sistema chiede prima il campo su cui effettuare la ricerca e poi i termini query.
+* **Ricerca per Range Temporale**: Sfrutta l'ordinamento lessicografico dei termini per eseguire filtri temporali efficienti.
+* **Ricerca Booleana Complessa**: Permette la combinazione di più criteri di ricerca attraverso l'aggregazione di più BooleanQueryPart.
+* **Recupero Articoli tramite Contenuto Tabellare**: Viene eseguita una ricerca full-text sul campo body dell'indice delle tabelle per aggregare i riferimenti univoci agli articoli di provenienza.
